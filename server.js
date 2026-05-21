@@ -10,7 +10,7 @@ const path = require('path');
 // ── config ────────────────────────────────────────────────────────
 const STORAGE_DIR = path.join(__dirname, 'storage');
 const META_FILE = path.join(__dirname, 'file-meta.json');
-const PORT = parseInt(process.env.PORT, 10) || 64991;
+const PORT = parseInt(process.env.PORT, 10) || 8080;
 const MAX_LOG = 500;
 
 if (!fs.existsSync(STORAGE_DIR)) fs.mkdirSync(STORAGE_DIR, { recursive: true });
