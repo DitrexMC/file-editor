@@ -345,6 +345,11 @@ io.on('connection', (socket) => {
   });
 });
 
+// swallow ECONNRESET and other transient socket errors
+server.on('connection', (socket) => {
+  socket.on('error', () => {});
+});
+
 // ── start ─────────────────────────────────────────────────────────
 function tryListen(port, retries) {
   server.removeAllListeners('error');
