@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# storage (edited files may contain sensitive data)
+storage/
+file-meta.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# env
+.env
+.env.local

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Editor</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1>Activity Log</h1>
+    </div>
+    <div class="log-container" id="log">
+      <div class="empty-state">Select a file to see activity</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <h2>Files</h2>
+      <button class="btn btn-sm" id="new-file-btn">+ New</button>
+    </div>
+
+    <div class="new-file-form" id="new-file-form" style="display:none">
+      <input type="text" id="new-file-name" placeholder="filename.properties" autocomplete="off">
+      <button class="btn btn-sm btn-primary" id="create-btn">Create</button>
+      <button class="btn btn-sm btn-secondary" id="cancel-create-btn">Cancel</button>
+      <span class="form-error" id="create-error"></span>
+    </div>
+
+    <div class="file-list" id="file-list">
+      <% if (files.length === 0) { %>
+        <div class="empty-state">No files yet. Click "+ New" to create one.</div>
+      <% } else { %>
+        <% files.forEach(function(f) { %>
+          <div class="file-item" data-name="<%= f.name %>" onclick="openFile('<%- f.name %>')">
+            <span class="file-icon"><%= {json:'{}',yaml:'Y',yml:'Y',properties:'Pr',js:'JS',xml:'<>',cfg:'Cf',conf:'Cn',ini:'In',toml:'T',sh:'>_',txt:'Tx'}[f.ext] || 'Fi' %></span>
+            <span class="file-name"><%= f.name %></span>
+            <% if (f.editor) { %>
+              <span class="file-editor"><%= f.editor %></span>
+            <% } %>
+            <span class="file-meta">
+              <a href="/api/files/<%= encodeURIComponent(f.name) %>/download" class="btn btn-sm btn-dl" onclick="event.stopPropagation()" title="Download">⬇</a>
+              <button class="btn btn-sm btn-del" onclick="deleteFile('<%- f.name %>', event)" title="Delete">🗑</button>
+            </span>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ── WebSocket for global activity log ──────────────────────────────
+const socket = io();
+
+socket.on('log:entry', (entry) => {
+  addLogEntry(entry);
+});
+
+socket.on('file:updated', (data) => {
+  addLogEntry({
+    fileName: data.fileName,
+    editor: data.editor,
+    timestamp: data.timestamp,
+    conflict: data.conflict
+  });
+});
+
+function addLogEntry(data) {
+  const log = document.getElementById('log');
+  // remove empty state
+  const empty = log.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const time = new Date(data.timestamp).toLocaleTimeString('ja-JP');
+  const badge = data.conflict ? '<span class="log-conflict">⚠ conflict</span>' : '';
+  entry.innerHTML =
+    '<span class="log-time">' + time + '</span>' +
+    '<span class="log-body">' +
+      '<span class="log-editor">' + esc(data.editor) + '</span>' +
+      '<span class="log-action"> applied </span>' +
+      '<span class="log-file">' + esc(data.fileName) + '</span>' +
+      badge +
+    '</span>';
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+
+  while (log.children.length > 200) log.removeChild(log.firstChild);
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function openFile(name) {
+  window.location.href = '/edit/' + encodeURIComponent(name);
+}
+
+async function deleteFile(name, event) {
+  event.stopPropagation();
+  if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+
+  const item = event.target.closest('.file-item');
+  item.style.opacity = '0.4';
+
+  try {
+    const res = await fetch('/api/files/' + encodeURIComponent(name), { method: 'DELETE' });
+    if (res.ok) {
+      item.remove();
+      // show empty state if no files left
+      const list = document.getElementById('file-list');
+      if (list.children.length === 0) {
+        list.innerHTML = '<div class="empty-state">No files yet. Click "+ New" to create one.</div>';
+      }
+    } else {
+      alert('Delete failed');
+      item.style.opacity = '1';
+    }
+  } catch {
+    alert('Delete failed');
+    item.style.opacity = '1';
+  }
+}
+
+// ── new file form ─────────────────────────────────────────────────
+const newFileBtn = document.getElementById('new-file-btn');
+const newFileForm = document.getElementById('new-file-form');
+const newFileName = document.getElementById('new-file-name');
+const createBtn = document.getElementById('create-btn');
+const cancelBtn = document.getElementById('cancel-create-btn');
+const createError = document.getElementById('create-error');
+
+newFileBtn.addEventListener('click', () => {
+  newFileForm.style.display = 'flex';
+  newFileBtn.style.display = 'none';
+  newFileName.focus();
+});
+
+cancelBtn.addEventListener('click', () => {
+  newFileForm.style.display = 'none';
+  newFileBtn.style.display = '';
+  newFileName.value = '';
+  createError.textContent = '';
+});
+
+async function createFile() {
+  const name = newFileName.value.trim();
+  if (!name) return;
+  createError.textContent = '';
+
+  try {
+    const res = await fetch('/api/files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.location.href = '/edit/' + encodeURIComponent(data.name);
+    } else {
+      createError.textContent = data.error;
+    }
+  } catch (err) {
+    createError.textContent = 'Failed to create';
+  }
+}
+
+createBtn.addEventListener('click', createFile);
+newFileName.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') createFile();
+});
+</script>
+</body>
+</html>

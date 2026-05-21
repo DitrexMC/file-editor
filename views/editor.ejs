@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= name %> — File Editor</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <!-- Left panel: Activity log -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Edit Log</h1>
+      <span class="sidebar-subtitle"><%= name %></span>
+    </div>
+    <div class="log-container" id="log">
+      <% if (fileLogs.length === 0) { %>
+        <div class="empty-state">No edits yet</div>
+      <% } else { %>
+        <% fileLogs.slice().reverse().forEach(function(l) { %>
+          <div class="log-entry">
+            <span class="log-time"><%= new Date(l.timestamp).toLocaleTimeString('ja-JP') %></span>
+            <span class="log-body">
+              <span class="log-editor"><%= l.editor %></span>
+              <span class="log-action"> applied </span>
+              <% if (l.conflict) { %><span class="log-conflict">⚠ overwrote <%= l.overwrittenEditor || 'someone' %></span><% } %>
+            </span>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </aside>
+
+  <!-- Right panel: Editor -->
+  <main class="main editor-main">
+    <div class="editor-toolbar">
+      <a href="/" class="btn btn-sm btn-secondary">&larr; Files</a>
+      <span class="editor-filename"><%= name %></span>
+      <span class="editor-mode-badge"><%= {'.json':'json','.yml':'yaml','.yaml':'yaml','.properties':'properties','.js':'javascript','.xml':'xml','.toml':'toml','.ini':'ini','.cfg':'cfg'}[ext] || 'text' %></span>
+      <div class="toolbar-actions-right">
+        <button class="btn btn-sm btn-danger" id="delete-btn" title="Delete file">🗑</button>
+      </div>
+    </div>
+
+    <div class="editor-wrapper">
+      <textarea id="code-editor"></textarea>
+    </div>
+
+    <div class="editor-footer">
+      <div class="editor-info">
+        <span id="editor-status"></span>
+        <span id="conflict-warning" class="conflict-warning" style="display:none"></span>
+      </div>
+      <div class="editor-actions">
+        <input type="text" id="editor-name" placeholder="Your name" value="<%= editor %>" autocomplete="off" maxlength="50">
+        <button class="btn btn-primary" id="apply-btn">Apply</button>
+        <a href="/api/files/<%= encodeURIComponent(name) %>/download" class="btn btn-dl" download>Download</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/properties/properties.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
